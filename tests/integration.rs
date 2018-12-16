@@ -48,11 +48,8 @@ fn list() {
         let files: Vec<OsString> = dir
             .map(|f| f.unwrap().path().file_stem().unwrap().to_os_string())
             .collect();
-
-        let file1: &OsString = files.get(0).unwrap();
-        let file2: &OsString = files.get(1).unwrap();
-        assert_eq!(file1, "backMeUp1");
-        assert_eq!(file2, "backMeUp2");
+        assert!(files.contains(&OsString::from("backMeUp1")));
+        assert!(files.contains(&OsString::from("backMeUp2")));
         fs::remove_dir_all(backup_dir).expect("Couldn't remove directory");
     } else {
         assert!(dir.exists());
@@ -76,10 +73,8 @@ fn file() {
             .map(|f| f.unwrap().path().file_stem().unwrap().to_os_string())
             .collect();
 
-        let file1: &OsString = files.get(0).unwrap();
-        let file2: &OsString = files.get(1).unwrap();
-        assert_eq!(file1, "backMeUp1");
-        assert_eq!(file2, "backMeUp2");
+        assert!(files.contains(&OsString::from("backMeUp1")));
+        assert!(files.contains(&OsString::from("backMeUp2")));
         fs::remove_dir_all(backup_dir).expect("Couldn't remove directory");
     } else {
         assert!(dir.exists());
@@ -99,16 +94,18 @@ fn tar() {
     let backup_file = format!("{}tar_env/confbk-{}.tar.xz", CURRENT_DIR, time);
     let file = PathBuf::from(&backup_file);
     if file.exists() {
+        let time = Local::now().format("%Y_%m_%d");
+        let backup_file_name = format!("confbk-{}", time);
         Command::new("tar")
             .arg("-tf")
             .arg(&backup_file)
             .assert()
             .success()
-            .stdout(
-                "confbk-2018_12_15/\n\
-                 confbk-2018_12_15/backMeUp1\n\
-                 confbk-2018_12_15/backMeUp2\n",
-            );
+            .stdout(format!(
+                "{}/\n\
+                 {}/backMeUp1\n\
+                 {}/backMeUp2\n", backup_file_name, backup_file_name, backup_file_name
+            ));
         fs::remove_file(backup_file).expect("Cannot remove file");
     } else {
         assert!(file.exists());
@@ -134,12 +131,9 @@ fn list_and_file() {
             .map(|f| f.unwrap().path().file_stem().unwrap().to_os_string())
             .collect();
 
-        let file1: &OsString = files.get(0).unwrap();
-        let file2: &OsString = files.get(1).unwrap();
-        let file3: &OsString = files.get(2).unwrap();
-        assert_eq!(file1, "backMeUp1");
-        assert_eq!(file2, "backMeUp2");
-        assert_eq!(file3, "backMeUp3");
+        assert!(files.contains(&OsString::from("backMeUp1")));
+        assert!(files.contains(&OsString::from("backMeUp2")));
+        assert!(files.contains(&OsString::from("backMeUp3")));
         fs::remove_dir_all(backup_dir).expect("Couldn't remove directory");
     } else {
         assert!(dir.exists());
