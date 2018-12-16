@@ -1,0 +1,46 @@
+.TH confbk 1
+.SH NAME
+confbk \- a tool for backing up files
+.SH USAGE
+confbk [FLAGS] [OPTIONS] --file <FILE> --list <FILE>...
+.SH DESCRIPTION
+confbk \- a tool for backing up files
+.SH OPTIONS
+.HP
+\fB\-d\fR, \fB\-\-dry\-run\fR
+.IP
+List all files that would be backed up.
+.HP
+\fB\-h\fR, \fB\-\-help\fR
+.IP
+Display help message.
+.HP
+\fB\-q\fR, \fB\-\-quiet\fR
+.IP
+Suppress all output to stdout.
+.HP
+\fB\-x\fR, \fB\-\-tar-xz\fR
+.IP
+Compress the backup through tar and xz compression.
+.HP
+\fB\-V\fR, \fB\-\-version\fR
+.IP
+Show version information.
+.HP
+\fB\-v\fR, \fB\-\-verbose\fR
+.IP
+Be more verbose.
+.HP
+\fB\-f\fR, \fB\-\-file\fR <FILE>
+.IP
+Instead of listing all configuration files on the command
+line with \fB-l\fR, specify a file that contains new-line delimited paths to files.
+.HP
+\fB\-l\fR, \fB\-\-list\fR <FILE>...
+.IP
+A list of files to be backed up.
+.HP
+\fB\-o\fR, \fB\-\-out\fR <DIR>
+.IP
+Directory to copy configuration files to. The default value is
+"confbk-YEAR_MONTH_DAY"
