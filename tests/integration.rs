@@ -87,26 +87,25 @@ fn tar() {
         .arg("-f")
         .arg("listOfConfigs1-2")
         .arg("-x")
+        .arg("-o")
+        .arg("conf")
         .assert()
         .success()
         .stdout("Backing up\n");
-    let time = Local::now().format("%Y_%m_%d");
-    let backup_file = format!("{}tar_env/confbk-{}.tar.xz", CURRENT_DIR, time);
+    let backup_file = format!("{}tar_env/conf.tar.xz", CURRENT_DIR);
     let file = PathBuf::from(&backup_file);
     if file.exists() {
-        let time = Local::now().format("%Y_%m_%d");
-        let backup_file_name = format!("confbk-{}", time);
-        Command::new("tar")
+        let output = Command::new("tar")
             .arg("-tf")
             .arg(&backup_file)
-            .assert()
-            .success()
-            .stdout(format!(
-                "{}/\n\
-                 {}/backMeUp1\n\
-                 {}/backMeUp2\n", backup_file_name, backup_file_name, backup_file_name
-            ));
+            .output()
+            .expect("tar failed to execute");
         fs::remove_file(backup_file).expect("Cannot remove file");
+
+        let output = String::from_utf8(output.stdout).expect("failed to convert u8 vec to string");
+        if !(output.contains("backMeUp1") && output.contains("backMeUp2")) {
+            assert!(output.contains("backMeUp1") && output.contains("backMeUp2"));
+        }
     } else {
         assert!(file.exists());
     }
