@@ -3,4 +3,3 @@ rust:
   - stable
 os:
   - linux
-cache: cargo
