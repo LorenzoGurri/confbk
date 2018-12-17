@@ -1,6 +1,8 @@
 # confbk
 
-[![Build Status](https://travis-ci.org/Recandi/confbk.svg?branch=master)](https://travis-ci.org/Recandi/confbk)
+[![Build Status](https://travis-ci.org/Recandi/confbk.svg?branch=master)](https://travis-ci.org/Recandi/confbk) [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+
+`confbk` is a easy to use tool for backing up files
 
 ## Simple Usage
 
