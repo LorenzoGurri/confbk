@@ -16,11 +16,11 @@ pub struct Opt {
     /// List files that would be backed up
     dry_run: bool,
 
-    #[structopt(short, long)]
+    #[structopt(short, long, conflicts_with = "verbose")]
     /// Do not display any output
     quiet: bool,
 
-    #[structopt(short, long)]
+    #[structopt(short, long, conflicts_with = "quiet")]
     /// Display more verbose output
     verbose: bool,
 

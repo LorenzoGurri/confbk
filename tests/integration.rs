@@ -2,16 +2,21 @@ extern crate assert_cmd;
 extern crate escargot;
 extern crate lazy_static;
 
+// TODO: USE THIS
+extern crate tempdir;
+
 use assert_cmd::prelude::*;
-use chrono::Local;
 use escargot::CargoRun;
 use lazy_static::lazy_static;
+use std::env;
 use std::ffi::OsString;
 use std::fs;
+use std::io::Write;
 use std::path::PathBuf;
 use std::process::Command;
+use tempdir::TempDir;
 
-static CURRENT_DIR: &'static str = "tests/environments/";
+static CURRENT_DIR: &'static str = "tests/";
 lazy_static! {
     static ref CARGO_RUN: CargoRun = escargot::CargoBuild::new()
         .bin("confbk")
@@ -20,100 +25,136 @@ lazy_static! {
         .unwrap();
 }
 
-fn confbk(environment: &str) -> Command {
+fn confbk(path: &str) -> Command {
     let mut cmd = CARGO_RUN.command();
-    cmd.current_dir(format!("{}{}", CURRENT_DIR, environment));
+    cmd.current_dir(format!("{}", path));
     cmd
+}
+
+fn setup_env(tmp_dir: &TempDir) {
+    // Files
+    fs::File::create(tmp_dir.path().join("backMeUp1")).expect("Failed to create backMeUp1");
+    fs::File::create(tmp_dir.path().join("backMeUp2")).expect("Failed to create backMeUp2");
+    fs::File::create(tmp_dir.path().join("backMeUp3")).expect("Failed to create backMeUp3");
+    fs::File::create(tmp_dir.path().join("\x1B00D8\x1B00FB\x1B0226"))
+        .expect("Failed to create file with unicode characters in it");
+    // Lists of Files
+    let mut list_of_configs1_2 = fs::File::create(tmp_dir.path().join("listOfConfigs1-2"))
+        .expect("Failed to create listOfConfigs1-2");
+    let mut list_that_fails = fs::File::create(tmp_dir.path().join("listThatFails"))
+        .expect("Failed to create listThatFails");
+
+    // Writing filenames to lists
+    writeln!(list_of_configs1_2, "backMeUp1\nbackMeUp2")
+        .expect("Failed to write to listOfConfigs1-2");
+    writeln!(list_that_fails, "IDontExist").expect("Failed to write to listThatFails");
 }
 
 #[test]
 fn no_args() {
-    confbk("").assert().failure();
+    let currnet = env::current_dir()
+        .expect("Could not open current directory")
+        .display()
+        .to_string();
+    confbk(&currnet).assert().failure();
 }
 
 #[test]
 fn list() {
-    confbk("list_env")
+    let tmp_dir = TempDir::new_in(CURRENT_DIR, "list").expect("Failed to create tmp dir");
+    setup_env(&tmp_dir);
+    confbk(&tmp_dir.path().display().to_string())
         .arg("-l")
         .arg("backMeUp1")
         .arg("backMeUp2")
         .assert()
         .success()
         .stdout("Backing up\n");
-    let time = Local::now().format("%Y_%m_%d");
-    let backup_dir = format!("{}list_env/confbk-{}", CURRENT_DIR, time);
+    let backup_dir = format!("{}/confbk_backup", tmp_dir.path().display());
     let dir = PathBuf::from(&backup_dir);
-    if dir.exists() {
+    if dir.is_dir() {
         let dir = fs::read_dir(dir).expect("Failed to open directory");
         let files: Vec<OsString> = dir
-            .map(|f| f.unwrap().path().file_stem().unwrap().to_os_string())
+            .map(|f| {
+                f.expect("Failed to get DirEntry")
+                    .path()
+                    .file_stem()
+                    .expect("Failed to get file_stem")
+                    .to_os_string()
+            })
             .collect();
         assert!(files.contains(&OsString::from("backMeUp1")));
         assert!(files.contains(&OsString::from("backMeUp2")));
-        fs::remove_dir_all(backup_dir).expect("Couldn't remove directory");
     } else {
-        assert!(dir.exists());
+        assert!(dir.is_dir());
     }
 }
 
 #[test]
 fn file() {
-    confbk("file_env")
+    let tmp_dir = TempDir::new_in(CURRENT_DIR, "file").expect("Failed to create tmp dir");
+    setup_env(&tmp_dir);
+    confbk(&tmp_dir.path().display().to_string())
         .arg("-f")
         .arg("listOfConfigs1-2")
         .assert()
         .success()
         .stdout("Backing up\n");
-    let time = Local::now().format("%Y_%m_%d");
-    let backup_dir = format!("{}file_env/confbk-{}", CURRENT_DIR, time);
+    let backup_dir = format!("{}/confbk_backup", tmp_dir.path().display().to_string());
     let dir = PathBuf::from(&backup_dir);
-    if dir.exists() {
+    if dir.is_dir() {
         let dir = fs::read_dir(dir).expect("Failed to open directory");
         let files: Vec<OsString> = dir
-            .map(|f| f.unwrap().path().file_stem().unwrap().to_os_string())
+            .map(|f| {
+                f.expect("Failed to get DirEntry")
+                    .path()
+                    .file_stem()
+                    .expect("Failed to get file_stem")
+                    .to_os_string()
+            })
             .collect();
-
         assert!(files.contains(&OsString::from("backMeUp1")));
         assert!(files.contains(&OsString::from("backMeUp2")));
-        fs::remove_dir_all(backup_dir).expect("Couldn't remove directory");
     } else {
-        assert!(dir.exists());
+        assert!(dir.is_dir());
     }
 }
 
 #[test]
 fn tar() {
-    confbk("tar_env")
+    let tmp_dir = TempDir::new_in(CURRENT_DIR, "tar").expect("Failed to create tmp dir");
+    setup_env(&tmp_dir);
+    confbk(&tmp_dir.path().display().to_string())
         .arg("-f")
         .arg("listOfConfigs1-2")
-        .arg("-x")
+        .arg("-t")
         .arg("-o")
         .arg("conf")
         .assert()
         .success()
         .stdout("Backing up\n");
-    let backup_file = format!("{}tar_env/conf.tar.xz", CURRENT_DIR);
+    let backup_file = format!("{}/conf.tar.xz", tmp_dir.path().display().to_string());
     let file = PathBuf::from(&backup_file);
-    if file.exists() {
+    if file.is_file() {
         let output = Command::new("tar")
             .arg("-tf")
             .arg(&backup_file)
             .output()
             .expect("tar failed to execute");
-        fs::remove_file(backup_file).expect("Cannot remove file");
-
         let output = String::from_utf8(output.stdout).expect("failed to convert u8 vec to string");
         if !(output.contains("backMeUp1") && output.contains("backMeUp2")) {
             assert!(output.contains("backMeUp1") && output.contains("backMeUp2"));
         }
     } else {
-        assert!(file.exists());
+        assert!(file.is_file());
     }
 }
 
 #[test]
 fn list_and_file() {
-    confbk("list_and_file_env")
+    let tmp_dir = TempDir::new_in(CURRENT_DIR, "list_and_file").expect("Failed to create tmp dir");
+    setup_env(&tmp_dir);
+    confbk(&tmp_dir.path().display().to_string())
         .arg("-f")
         .arg("listOfConfigs1-2")
         .arg("-l")
@@ -121,8 +162,7 @@ fn list_and_file() {
         .assert()
         .success()
         .stdout("Backing up\n");
-    let time = Local::now().format("%Y_%m_%d");
-    let backup_dir = format!("{}list_and_file_env/confbk-{}", CURRENT_DIR, time);
+    let backup_dir = format!("{}/confbk_backup", tmp_dir.path().display().to_string());
     let dir = PathBuf::from(&backup_dir);
     if dir.exists() {
         let dir = fs::read_dir(dir).expect("Failed to open directory");
@@ -133,7 +173,6 @@ fn list_and_file() {
         assert!(files.contains(&OsString::from("backMeUp1")));
         assert!(files.contains(&OsString::from("backMeUp2")));
         assert!(files.contains(&OsString::from("backMeUp3")));
-        fs::remove_dir_all(backup_dir).expect("Couldn't remove directory");
     } else {
         assert!(dir.exists());
     }
@@ -141,7 +180,9 @@ fn list_and_file() {
 
 #[test]
 fn dry_run() {
-    confbk("file_env")
+    let tmp_dir = TempDir::new_in(CURRENT_DIR, "dry_run").expect("Failed to create tmp dir");
+    setup_env(&tmp_dir);
+    confbk(&tmp_dir.path().display().to_string())
         .arg("-l")
         .arg("backMeUp1")
         .arg("-d")
@@ -155,26 +196,22 @@ fn dry_run() {
 
 #[test]
 fn verbose() {
-    let time = Local::now().format("%Y_%m_%d");
-    let stdout = format!(
-        "[Debug] Params {{\n    \
-         out: \"confbk-{}\",\n    \
-         dry_run: true,\n    \
-         quiet: false,\n    \
-         verbose: true,\n    \
-         file_of_configs: None,\n    \
-         list_of_configs: Some(\n        \
-         [\n            \
-         \"backMeUp1\"\n        \
-         ]\n    \
-         ),\n    \
-         tar: false\n\
-         }}\n\
-         Files to be backed up:\n    \
-         backMeUp1\n",
-        time
-    );
-    confbk("file_env")
+    let stdout = "[Debug] Opt {\n    \
+                  out: None,\n    \
+                  dry_run: true,\n    \
+                  quiet: false,\n    \
+                  verbose: true,\n    \
+                  file: None,\n    \
+                  list: [\n        \
+                  \"backMeUp1\"\n    \
+                  ],\n    \
+                  tar: false\n\
+                  }\n\
+                  Files to be backed up:\n    \
+                  backMeUp1\n";
+    let tmp_dir = TempDir::new_in(CURRENT_DIR, "verbose").expect("Failed to create tmp dir");
+    setup_env(&tmp_dir);
+    confbk(&tmp_dir.path().display().to_string())
         .arg("-l")
         .arg("backMeUp1")
         .arg("-d")
@@ -186,7 +223,9 @@ fn verbose() {
 
 #[test]
 fn quiet() {
-    confbk("file_env")
+    let tmp_dir = TempDir::new_in(CURRENT_DIR, "quiet").expect("Failed to create tmp dir");
+    setup_env(&tmp_dir);
+    confbk(&tmp_dir.path().display().to_string())
         .arg("-l")
         .arg("backMeUp1")
         .arg("-d")
@@ -198,7 +237,10 @@ fn quiet() {
 
 #[test]
 fn quiet_and_verbose() {
-    confbk("file_env")
+    let tmp_dir =
+        TempDir::new_in(CURRENT_DIR, "quiet_and_verbose").expect("Failed to create tmp dir");
+    setup_env(&tmp_dir);
+    confbk(&tmp_dir.path().display().to_string())
         .arg("-l")
         .arg("backMeUp1")
         .arg("-v")
@@ -209,7 +251,10 @@ fn quiet_and_verbose() {
 
 #[test]
 fn file_in_list_doesnt_exist() {
-    confbk("file_env")
+    let tmp_dir = TempDir::new_in(CURRENT_DIR, "file_in_list_doesnt_exist")
+        .expect("Failed to create tmp dir");
+    setup_env(&tmp_dir);
+    confbk(&tmp_dir.path().display().to_string())
         .arg("-l")
         .arg("IDontExist")
         .assert()
@@ -217,10 +262,54 @@ fn file_in_list_doesnt_exist() {
 }
 
 #[test]
-fn file_in_file_doesnt_exist() {
-    confbk("file_in_file_doesnt_exist_env")
+fn file_doesnt_exist() {
+    let tmp_dir =
+        TempDir::new_in(CURRENT_DIR, "file_doesnt_exist").expect("Failed to create tmp dir");
+    setup_env(&tmp_dir);
+    confbk(&tmp_dir.path().display().to_string())
         .arg("-f")
         .arg("listOfNonExistentConfig")
         .assert()
         .failure();
+}
+
+#[test]
+fn file_in_file_doesnt_exist() {
+    let tmp_dir = TempDir::new_in(CURRENT_DIR, "file_in_file_doesnt_exist")
+        .expect("Failed to create tmp dir");
+    setup_env(&tmp_dir);
+    confbk(&tmp_dir.path().display().to_string())
+        .arg("-f")
+        .arg("listThatFails")
+        .assert()
+        .failure();
+}
+
+#[test]
+fn unicode_support() {
+    let tmp_dir =
+        TempDir::new_in(CURRENT_DIR, "unicode_support").expect("Failed to create tmp dir");
+    setup_env(&tmp_dir);
+    confbk(&tmp_dir.path().display().to_string())
+        .arg("-l")
+        .arg("\x1B00D8\x1B00FB\x1B0226")
+        .assert()
+        .success();
+    let backup_dir = format!("{}/confbk_backup", tmp_dir.path().display().to_string());
+    let dir = PathBuf::from(&backup_dir);
+    if dir.is_dir() {
+        let dir = fs::read_dir(dir).expect("Failed to open directory");
+        let files: Vec<OsString> = dir
+            .map(|f| {
+                f.expect("Failed to get DirEntry")
+                    .path()
+                    .file_stem()
+                    .expect("Failed to get file_stem")
+                    .to_os_string()
+            })
+            .collect();
+        assert!(files.contains(&OsString::from("\x1B00D8\x1B00FB\x1B0226")));
+    } else {
+        assert!(dir.is_dir());
+    }
 }

@@ -10,7 +10,7 @@
 
 ## Tar
 
-`confbk` can also automatically tar and compress with the `-x` option ![Using Tar](doc/tar.png)
+`confbk` can also automatically tar and compress with the `-t` option ![Using Tar](doc/tar.png)
 
 ## Dry Run
 
