@@ -1,3 +1,4 @@
+extern crate duct;
 extern crate lazy_static;
 extern crate rand;
 extern crate structopt;
@@ -6,10 +7,10 @@ mod args;
 mod util;
 
 //use std::io::{BufRead, BufReader};
+use duct::cmd;
 use std::fs;
 use std::io;
 use std::path::PathBuf;
-use std::process;
 
 fn main() {
     // get arguments passed in
@@ -70,21 +71,10 @@ fn backup(
             file.display(),
             out.display()
         ));
-        process::Command::new("cp")
-            .args(&[&file, &out])
-            .status()
-            .unwrap();
+        cmd("cp", &[file, &out]).stdout_null().run().unwrap();
     }
     if tar {
         print.debug("Executing Tar");
-        process::Command::new("tar")
-            .args(&[
-                "cJf",
-                &format!("{}.tar.xz", out.display()),
-                &out.display().to_string(),
-            ])
-            .status()
-            .unwrap();
         fs::remove_dir_all(&out)?;
     }
 
