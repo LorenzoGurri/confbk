@@ -75,6 +75,7 @@ fn backup(
     }
     if tar {
         print.debug("Executing Tar");
+        cmd("tar", &["cjf", &format!("{}.tar.xz", out.display()), &out.display().to_string()]).stdout_null().run().unwrap();
         fs::remove_dir_all(&out)?;
     }
 
