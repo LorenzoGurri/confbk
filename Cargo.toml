@@ -11,7 +11,6 @@ version = "0.2.2"
 
 [dependencies]
 chrono = "0.4.6"
-rand = "0.6.0"
 structopt = "0.2"
 lazy_static = "1.2"
 duct = "0.11.1"

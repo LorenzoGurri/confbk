@@ -1,6 +1,5 @@
 extern crate duct;
 extern crate lazy_static;
-extern crate rand;
 extern crate structopt;
 
 mod args;
