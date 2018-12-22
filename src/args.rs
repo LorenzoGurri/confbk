@@ -52,7 +52,7 @@ impl Opt {
         // validate files in list
         for file in &self.list {
             if file.is_file() {
-                files.push(file.clone());
+                files.push(file.to_path_buf());
             } else {
                 FatalError::file_not_found(&file.display().to_string());
             }
@@ -71,7 +71,7 @@ impl Opt {
                                 let line = OsString::from(line);
                                 let line = PathBuf::from(line);
                                 if line.is_file() {
-                                    files.push(line.clone());
+                                    files.push(line);
                                 } else {
                                     FatalError::file_not_found(&line.display().to_string());
                                 }

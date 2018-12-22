@@ -31,14 +31,15 @@ fn main() {
 
     print.debug(&format!("{:#?}", arguments));
 
-    let configs = arguments.validate_files().unwrap().clone();
+    let configs = arguments.validate_files().unwrap();
+    let path = PathBuf::from("confbk_backup");
     let out_file = match arguments.out() {
-        Some(s) => s.clone(),
-        None => PathBuf::from("confbk_backup"),
+        Some(s) => s,
+        None => &path,
     };
     backup(
-        configs,
-        print,
+        &configs,
+        &print,
         out_file,
         arguments.dry_run(),
         arguments.tar(),
@@ -48,9 +49,9 @@ fn main() {
 
 // Backup function that will backup files
 fn backup(
-    list: Vec<PathBuf>,
-    print: util::VerbosePrint,
-    out: PathBuf,
+    list: &[PathBuf],
+    print: &util::VerbosePrint,
+    out: &PathBuf,
     dry_run: bool,
     tar: bool,
 ) -> io::Result<()> {
@@ -62,10 +63,7 @@ fn backup(
         return Ok(());
     }
     print.println("Backing up");
-    fs::create_dir(&out).unwrap_or_else(|_| {
-        eprintln!("Error: Directory \"{}\" already exists", out.display());
-        process::exit(1);
-    });
+    fs::create_dir(&out)?;
     for file in list {
         print.debug(&format!(
             "Copying file \"{}\" to \"{}\"",
