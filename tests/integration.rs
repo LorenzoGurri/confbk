@@ -32,6 +32,13 @@ fn confbk(path: &str) -> Command {
 }
 
 fn setup_env(tmp_dir: &TempDir) {
+    // directory
+    fs::create_dir(tmp_dir.path().join("backupDir")).expect("Failed to create backupDir");
+    fs::File::create(tmp_dir.path().join("backupDir/example1"))
+        .expect("Failed to create backupDir/example1");
+    fs::File::create(tmp_dir.path().join("backupDir/example2"))
+        .expect("Failed to create backupDir/example2");
+
     // Files
     fs::File::create(tmp_dir.path().join("backMeUp1")).expect("Failed to create backMeUp1");
     fs::File::create(tmp_dir.path().join("backMeUp2")).expect("Failed to create backMeUp2");
@@ -43,7 +50,6 @@ fn setup_env(tmp_dir: &TempDir) {
         .expect("Failed to create listOfConfigs1-2");
     let mut list_that_fails = fs::File::create(tmp_dir.path().join("listThatFails"))
         .expect("Failed to create listThatFails");
-
     // Writing filenames to lists
     writeln!(list_of_configs1_2, "backMeUp1\nbackMeUp2")
         .expect("Failed to write to listOfConfigs1-2");
@@ -311,5 +317,32 @@ fn unicode_support() {
         assert!(files.contains(&OsString::from("\x1B00D8\x1B00FB\x1B0226")));
     } else {
         assert!(dir.is_dir());
+    }
+}
+
+#[test]
+fn dir_backup() {
+    let tmp_dir = TempDir::new_in(CURRENT_DIR, "dir_backup").expect("Failed to create tmp dir");
+    setup_env(&tmp_dir);
+    confbk(&tmp_dir.path().display().to_string())
+        .arg("-l")
+        .arg("backupDir")
+        .assert()
+        .success();
+    let backup_dir = format!("{}/confbk_backup", tmp_dir.path().display().to_string());
+    let backup_dir = PathBuf::from(backup_dir).join("backupDir");
+    if backup_dir.is_dir() {
+        let dir: Vec<OsString> = fs::read_dir(backup_dir)
+            .expect("Failed to read directory")
+            .map(|f| {
+                f.expect("Failed to get DirEntry")
+                    .path()
+                    .file_stem()
+                    .expect("Failed to get file_stem")
+                    .to_os_string()
+            })
+            .collect();
+        assert!(dir.contains(&OsString::from("example1")));
+        assert!(dir.contains(&OsString::from("example2")));
     }
 }

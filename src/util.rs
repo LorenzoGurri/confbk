@@ -1,3 +1,8 @@
+use super::util;
+use duct::cmd;
+use std::fs;
+use std::io;
+use std::path::PathBuf;
 use std::process;
 
 pub enum VerboseLevel {
@@ -35,4 +40,60 @@ impl VerbosePrint {
             VerboseLevel::Off => (),
         }
     }
+}
+
+// Backup function that will backup files
+pub fn backup(
+    files: &[PathBuf],
+    directories: &[PathBuf],
+    print: &util::VerbosePrint,
+    out: &PathBuf,
+    dry_run: bool,
+    tar: bool,
+) -> io::Result<()> {
+    if dry_run {
+        print.println("Files to be backed up:");
+        for file in files {
+            print.println(&format!("    {}", file.display()));
+        }
+        return Ok(());
+    }
+    print.println("Backing up");
+    fs::create_dir(&out)?;
+    for file in files {
+        print.debug(&format!(
+            "Copying file \"{}\" to \"{}\"",
+            file.display(),
+            out.display()
+        ));
+        cmd!("cp", file, out).stdout_null().run().unwrap();
+    }
+    for directory in directories {
+        print.debug(&format!(
+            "Copying directory \"{}\" to \"{}\"",
+            directory.display(),
+            out.display()
+        ));
+        cmd!("cp", "-r", directory, out)
+            .stdout_null()
+            .run()
+            .unwrap();
+    }
+    if tar {
+        print.debug("Executing Tar");
+        cmd(
+            "tar",
+            &[
+                "cjf",
+                &format!("{}.tar.xz", out.display()),
+                &out.display().to_string(),
+            ],
+        )
+        .stdout_null()
+        .run()
+        .unwrap();
+        fs::remove_dir_all(&out)?;
+    }
+
+    Ok(())
 }

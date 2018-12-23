@@ -5,10 +5,6 @@ extern crate structopt;
 mod args;
 mod util;
 
-//use std::io::{BufRead, BufReader};
-use duct::cmd;
-use std::fs;
-use std::io;
 use std::path::PathBuf;
 
 fn main() {
@@ -31,52 +27,20 @@ fn main() {
 
     print.debug(&format!("{:#?}", arguments));
 
-    let configs = arguments.validate_files().unwrap();
+    let (files, directories) = arguments.validate_paths().unwrap();
+
     let path = PathBuf::from("confbk_backup");
     let out_file = match arguments.out() {
         Some(s) => s,
         None => &path,
     };
-    backup(
-        &configs,
+    util::backup(
+        &files,
+        &directories,
         &print,
         out_file,
         arguments.dry_run(),
         arguments.tar(),
     )
     .unwrap_or_else(|e| util::FatalError::error(&e.to_string()));
-}
-
-// Backup function that will backup files
-fn backup(
-    list: &[PathBuf],
-    print: &util::VerbosePrint,
-    out: &PathBuf,
-    dry_run: bool,
-    tar: bool,
-) -> io::Result<()> {
-    if dry_run {
-        print.println("Files to be backed up:");
-        for file in list {
-            print.println(&format!("    {}", file.display()));
-        }
-        return Ok(());
-    }
-    print.println("Backing up");
-    fs::create_dir(&out)?;
-    for file in list {
-        print.debug(&format!(
-            "Copying file \"{}\" to \"{}\"",
-            file.display(),
-            out.display()
-        ));
-        cmd("cp", &[file, &out]).stdout_null().run().unwrap();
-    }
-    if tar {
-        print.debug("Executing Tar");
-        cmd("tar", &["cjf", &format!("{}.tar.xz", out.display()), &out.display().to_string()]).stdout_null().run().unwrap();
-        fs::remove_dir_all(&out)?;
-    }
-
-    Ok(())
 }

@@ -47,14 +47,18 @@ impl Opt {
     pub fn quiet(&self) -> bool {
         self.quiet
     }
-    pub fn validate_files(&self) -> io::Result<Vec<PathBuf>> {
+    pub fn validate_paths(&self) -> io::Result<(Vec<PathBuf>, Vec<PathBuf>)> {
         let mut files: Vec<PathBuf> = Vec::new();
+        let mut directories: Vec<PathBuf> = Vec::new();
+
         // validate files in list
-        for file in &self.list {
-            if file.is_file() {
-                files.push(file.to_path_buf());
+        for path in &self.list {
+            if path.is_file() {
+                files.push(path.to_path_buf());
+            } else if path.is_dir() {
+                directories.push(path.to_path_buf());
             } else {
-                FatalError::file_not_found(&file.display().to_string());
+                FatalError::file_not_found(&path.display().to_string());
             }
         }
         // validate files in file
@@ -66,14 +70,16 @@ impl Opt {
                     // line in file
                     for line in BufReader::new(file).lines() {
                         match line {
-                            Ok(line) => {
+                            Ok(path) => {
                                 // is this a file that exists
-                                let line = OsString::from(line);
-                                let line = PathBuf::from(line);
-                                if line.is_file() {
-                                    files.push(line);
+                                let path = OsString::from(path);
+                                let path = PathBuf::from(path);
+                                if path.is_file() {
+                                    files.push(path);
+                                } else if path.is_dir() {
+                                    directories.push(path.to_path_buf());
                                 } else {
-                                    FatalError::file_not_found(&line.display().to_string());
+                                    FatalError::file_not_found(&path.display().to_string());
                                 }
                             }
                             Err(e) => FatalError::error(&e.to_string()),
@@ -86,7 +92,7 @@ impl Opt {
             // ignore, -f flag was ommitted
             None => (),
         }
-        Ok(files)
+        Ok((files, directories))
     }
     pub fn verbose(&self) -> bool {
         self.verbose
