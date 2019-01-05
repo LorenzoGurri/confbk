@@ -211,7 +211,8 @@ fn verbose() {
                   list: [\n        \
                   \"backMeUp1\"\n    \
                   ],\n    \
-                  tar: false\n\
+                  tar: false,\n    \
+                  exclude: []\n\
                   }\n\
                   Files to be backed up:\n    \
                   backMeUp1\n";
@@ -343,6 +344,35 @@ fn dir_backup() {
             })
             .collect();
         assert!(dir.contains(&OsString::from("example1")));
+        assert!(dir.contains(&OsString::from("example2")));
+    }
+}
+
+#[test]
+fn exclude() {
+    let tmp_dir = TempDir::new_in(CURRENT_DIR, "dir_backup").expect("Failed to create tmp dir");
+    setup_env(&tmp_dir);
+    confbk(&tmp_dir.path().display().to_string())
+        .arg("-l")
+        .arg("backupDir")
+        .arg("-e")
+        .arg("backupDir/example1")
+        .assert()
+        .success();
+    let backup_dir = format!("{}/confbk_backup", tmp_dir.path().display().to_string());
+    let backup_dir = PathBuf::from(backup_dir).join("backupDir");
+    if backup_dir.is_dir() {
+        let dir: Vec<OsString> = fs::read_dir(backup_dir)
+            .expect("Failed to read directory")
+            .map(|f| {
+                f.expect("Failed to get DirEntry")
+                    .path()
+                    .file_stem()
+                    .expect("Failed to get file_stem")
+                    .to_os_string()
+            })
+            .collect();
+        assert!(!dir.contains(&OsString::from("example1")));
         assert!(dir.contains(&OsString::from("example2")));
     }
 }
