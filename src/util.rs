@@ -1,10 +1,12 @@
 use super::util;
 use duct::cmd;
+use fs_extra::dir::{self, DirContent};
+use std::ffi::OsStr;
+use std::ffi::OsString;
 use std::fs;
 use std::io;
 use std::path::PathBuf;
 use std::process;
-
 pub enum VerboseLevel {
     On,
     Reg,
@@ -44,40 +46,47 @@ impl VerbosePrint {
 
 // Backup function that will backup files
 pub fn backup(
-    files: &[PathBuf],
-    directories: &[PathBuf],
+    paths: &[PathBuf],
     print: &util::VerbosePrint,
-    out: &PathBuf,
+    out: &std::path::Path,
     dry_run: bool,
     tar: bool,
 ) -> io::Result<()> {
     if dry_run {
         print.println("Files to be backed up:");
-        for file in files {
+        for file in paths {
             print.println(&format!("    {}", file.display()));
         }
         return Ok(());
     }
     print.println("Backing up");
     fs::create_dir(&out)?;
-    for file in files {
+    for file in paths {
         print.debug(&format!(
             "Copying file \"{}\" to \"{}\"",
             file.display(),
             out.display()
         ));
-        cmd!("cp", file, out).stdout_null().run().unwrap();
-    }
-    for directory in directories {
-        print.debug(&format!(
-            "Copying directory \"{}\" to \"{}\"",
-            directory.display(),
-            out.display()
-        ));
-        cmd!("cp", "-r", directory, out)
-            .stdout_null()
-            .run()
-            .unwrap();
+        let parts: Vec<&OsStr> = file.iter().collect();
+        let mut path = OsString::new();
+        if parts.len() > 1 {
+            let dir_path: Vec<PathBuf> = parts
+                .iter()
+                .take(parts.len() - 1)
+                .map(OsString::from)
+                .map(PathBuf::from)
+                .collect();
+            for dir in dir_path {
+                path.push(dir);
+            }
+            out.to_path_buf().push(&path);
+            dir::create_all(PathBuf::from(&out), false).expect("Failed to create directories");
+        }
+
+        let mut out = PathBuf::from(out);
+        out.push(path);
+        cmd!("mkdir", "-p", &out).stdout_null().run().unwrap();
+        cmd!("cp", "-r", file, &out).stdout_null().run().unwrap();
     }
     if tar {
         print.debug("Executing Tar");
@@ -96,4 +105,9 @@ pub fn backup(
     }
 
     Ok(())
+}
+
+pub fn all_paths(dir: DirContent) -> Vec<PathBuf> {
+    let paths = dir.files.iter().map(|f| PathBuf::from(f)).collect();
+    paths
 }

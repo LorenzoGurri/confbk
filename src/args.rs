@@ -1,4 +1,5 @@
-use super::util::FatalError;
+use super::util::{self, FatalError};
+use fs_extra::dir;
 use std::ffi::OsString;
 use std::fs::File;
 use std::io::{self, BufRead, BufReader};
@@ -35,6 +36,10 @@ pub struct Opt {
     #[structopt(short, long)]
     /// Compress config dir into a .tar.xz file
     tar: bool,
+
+    #[structopt(short, long, parse(from_os_str))]
+    /// Exclude files or directories in the backup
+    exclude: Vec<PathBuf>,
 }
 
 impl Opt {
@@ -47,21 +52,23 @@ impl Opt {
     pub fn quiet(&self) -> bool {
         self.quiet
     }
-    pub fn validate_paths(&self) -> io::Result<(Vec<PathBuf>, Vec<PathBuf>)> {
-        let mut files: Vec<PathBuf> = Vec::new();
-        let mut directories: Vec<PathBuf> = Vec::new();
+    pub fn validate_paths(&self) -> io::Result<Vec<PathBuf>> {
+        let mut paths: Vec<PathBuf> = Vec::new();
 
-        // validate files in list
+        // validate files from list
         for path in &self.list {
             if path.is_file() {
-                files.push(path.to_path_buf());
+                paths.push(path.to_path_buf());
             } else if path.is_dir() {
-                directories.push(path.to_path_buf());
+                let content =
+                    dir::get_dir_content(path).expect("Failed to get content of directory");
+                let mut content: Vec<PathBuf> = util::all_paths(content);
+                paths.append(&mut content);
             } else {
                 FatalError::file_not_found(&path.display().to_string());
             }
         }
-        // validate files in file
+        // validate files from file
         match &self.file {
             Some(file) => {
                 // file exists
@@ -74,10 +81,8 @@ impl Opt {
                                 // is this a file that exists
                                 let path = OsString::from(path);
                                 let path = PathBuf::from(path);
-                                if path.is_file() {
-                                    files.push(path);
-                                } else if path.is_dir() {
-                                    directories.push(path.to_path_buf());
+                                if path.exists() {
+                                    paths.push(path);
                                 } else {
                                     FatalError::file_not_found(&path.display().to_string());
                                 }
@@ -92,7 +97,26 @@ impl Opt {
             // ignore, -f flag was ommitted
             None => (),
         }
-        Ok((files, directories))
+        // exclude files from paths
+        for excluded in &self.exclude {
+            let mut index: i32 = 0;
+            while index < (paths.len() as i32) {
+                let path = paths.get(index as usize).unwrap();
+                let p: String = PathBuf::into_os_string(path.to_path_buf())
+                    .to_string_lossy()
+                    .to_string();
+                let e: String = PathBuf::into_os_string(excluded.to_path_buf())
+                    .to_string_lossy()
+                    .to_string();
+
+                if p.contains(&e) {
+                    paths.remove(index as usize);
+                    index -= 1;
+                }
+                index += 1;
+            }
+        }
+        Ok(paths)
     }
     pub fn verbose(&self) -> bool {
         self.verbose

@@ -1,5 +1,5 @@
 extern crate duct;
-extern crate lazy_static;
+extern crate fs_extra;
 extern crate structopt;
 
 mod args;
@@ -25,20 +25,17 @@ fn main() {
         }
     };
 
+    let paths = arguments.validate_paths().unwrap();
     print.debug(&format!("{:#?}", arguments));
-
-    let (files, directories) = arguments.validate_paths().unwrap();
-
     let path = PathBuf::from("confbk_backup");
     let out_file = match arguments.out() {
         Some(s) => s,
         None => &path,
     };
     util::backup(
-        &files,
-        &directories,
+        &paths,
         &print,
-        out_file,
+        &out_file,
         arguments.dry_run(),
         arguments.tar(),
     )
