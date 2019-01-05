@@ -1,23 +1,15 @@
-sudo: required
-cache: cargo
 language: rust
+
+sudo: required
 
 rust:
   - stable
   - beta
   - nightly
 
-os:
-  - linux
-  - osx
-
 matrix:
   allow_failures:
     - rust: nightly
-
-script:
-  - cargo build
-  - cargo test
 
 addons:
   apt:
@@ -30,9 +22,7 @@ addons:
       - binutils-dev
       - libiberty-dev
 
-after_success:
-  - |
-  if [[ "$TRAVIS_OS_NAME" == "linux" && "$TRAVIS_RUST_VERSION" == "stable" ]]; then
+after_success: |
   wget https://github.com/SimonKagstrom/kcov/archive/master.tar.gz &&
   tar xzf master.tar.gz &&
   cd kcov-master &&
@@ -46,4 +36,3 @@ after_success:
   for file in target/debug/integration-*[^\.d]; do mkdir -p "target/cov/$(basename $file)"; ./kcov-build/usr/local/bin/kcov --exclude-pattern=/.cargo,/usr/lib --verify "target/cov/$(basename $file)" "$file"; done &&
   bash <(curl -s https://codecov.io/bash) &&
   echo "Uploaded code coverage"
-  fi
